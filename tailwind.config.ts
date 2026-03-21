@@ -68,6 +68,10 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			backgroundOpacity: {
+				'8': '0.08',
+				'18': '0.18',
+			},
 			fontFamily: {
 				hud: ['Oswald', 'sans-serif'],
 				body: ['Golos Text', 'sans-serif'],
