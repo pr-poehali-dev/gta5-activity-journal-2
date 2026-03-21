@@ -3,7 +3,31 @@ export const API_USERS = "https://functions.poehali.dev/93e60fdd-bf88-468d-88c8-
 
 export type Role = "user" | "leader" | "admin" | "curator";
 export type Status = "online" | "afk" | "offline";
-export type Tab = "stats" | "leaderboard" | "users" | "moderation" | "admin_panel";
+export type Tab = "stats" | "leaderboard" | "users" | "moderation" | "admin_panel" | "organizations";
+
+export interface Organization {
+  id: number;
+  name: string;
+  tag: string;
+  description: string;
+  leaderId: number | null;
+  leaderName: string;
+  memberCount: number;
+  createdAt: string;
+}
+
+export const MOCK_ORGS: Organization[] = [
+  { id: 1, name: "Shadow Legion", tag: "[SL]", description: "Элитное боевое подразделение", leaderId: 3, leaderName: "Shadow_Wolf", memberCount: 12, createdAt: "2024-01-15" },
+  { id: 2, name: "Nexus Corp", tag: "[NC]", description: "Торговая корпорация Лос-Сантоса", leaderId: null, leaderName: "—", memberCount: 8, createdAt: "2024-02-20" },
+];
+
+// Проверяет, может ли viewer редактировать target
+export function canEditTarget(viewerRole: Role, targetRole: Role): boolean {
+  if (viewerRole === "curator") return true; // куратор редактирует всех
+  if (viewerRole === "admin") return targetRole === "leader" || targetRole === "user"; // адмін — лидеров и игроков
+  if (viewerRole === "leader") return targetRole === "user"; // лидер — только игроков
+  return false;
+}
 
 export interface Player {
   id: number;

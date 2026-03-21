@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { Player, Role, Status, STATUS_COLORS, STATUS_LABELS, ROLE_LABELS, formatTime } from "@/lib/types";
+import { Player, Role, Status, STATUS_COLORS, STATUS_LABELS, ROLE_LABELS, formatTime, canEditTarget } from "@/lib/types";
 
 const RANKS = ["I", "II", "III", "IV"];
 
@@ -48,8 +48,9 @@ export function StatCard({ label, value, icon, sub, delay = 0 }: {
   );
 }
 
-export default function PlayerRow({ player, index, canEdit, onAddWarning, onRemoveWarning, onEditPlayer }: {
+export default function PlayerRow({ player, index, canEdit, viewerRole, onAddWarning, onRemoveWarning, onEditPlayer }: {
   player: Player; index: number; canEdit: boolean;
+  viewerRole?: Role;
   onAddWarning?: (id: number) => void;
   onRemoveWarning?: (id: number) => void;
   onEditPlayer?: (id: number, fields: { username?: string; rank?: string }) => void;
@@ -59,6 +60,9 @@ export default function PlayerRow({ player, index, canEdit, onAddWarning, onRemo
   const [editingRank, setEditingRank] = useState(false);
   const [draftName, setDraftName] = useState(player.username);
   const nameRef = useRef<HTMLInputElement>(null);
+
+  // Права: можно ли данному viewer редактировать этого player
+  const canEditThis = canEdit && !!viewerRole && canEditTarget(viewerRole, player.role);
 
   useEffect(() => { setDraftName(player.username); }, [player.username]);
   useEffect(() => { if (editingUsername) nameRef.current?.focus(); }, [editingUsername]);
@@ -90,7 +94,7 @@ export default function PlayerRow({ player, index, canEdit, onAddWarning, onRemo
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {/* USERNAME */}
-            {canEdit && editingUsername ? (
+            {canEditThis && editingUsername ? (
               <input
                 ref={nameRef}
                 value={draftName}
@@ -102,16 +106,16 @@ export default function PlayerRow({ player, index, canEdit, onAddWarning, onRemo
               />
             ) : (
               <span
-                className={`font-hud text-sm tracking-wide text-purple-100 ${canEdit ? "cursor-text hover:text-violet-300 transition-colors" : ""}`}
-                onClick={e => { if (canEdit) { e.stopPropagation(); setEditingUsername(true); } }}
-                title={canEdit ? "Нажмите для редактирования" : undefined}
+                className={`font-hud text-sm tracking-wide text-purple-100 ${canEditThis ? "cursor-text hover:text-violet-300 transition-colors" : ""}`}
+                onClick={e => { if (canEditThis) { e.stopPropagation(); setEditingUsername(true); } }}
+                title={canEditThis ? "Нажмите для редактирования" : undefined}
               >
                 {player.username}
               </span>
             )}
 
             {/* RANK */}
-            {canEdit && editingRank ? (
+            {canEditThis && editingRank ? (
               <div className="relative" onClick={e => e.stopPropagation()}>
                 <div className="flex gap-1">
                   {RANKS.map(r => (
@@ -125,15 +129,15 @@ export default function PlayerRow({ player, index, canEdit, onAddWarning, onRemo
               </div>
             ) : (
               <span
-                className={`rank-badge text-[9px] font-hud px-2 py-0.5 text-violet-300/80 ${canEdit ? "cursor-pointer hover:text-violet-200 hover:border-violet-500/50 transition-all" : ""}`}
-                onClick={e => { if (canEdit) { e.stopPropagation(); setEditingRank(true); } }}
-                title={canEdit ? "Нажмите для смены ранга" : undefined}
+                className={`rank-badge text-[9px] font-hud px-2 py-0.5 text-violet-300/80 ${canEditThis ? "cursor-pointer hover:text-violet-200 hover:border-violet-500/50 transition-all" : ""}`}
+                onClick={e => { if (canEditThis) { e.stopPropagation(); setEditingRank(true); } }}
+                title={canEditThis ? "Нажмите для смены ранга" : undefined}
               >
                 RNK {player.rank}
               </span>
             )}
 
-            {canEdit && !editingUsername && !editingRank && (
+            {canEditThis && !editingUsername && !editingRank && (
               <Icon name="Pencil" size={10} className="text-purple-800/60 hover:text-violet-400 cursor-pointer transition-colors"
                 onClick={e => { e.stopPropagation(); setEditingUsername(true); }} />
             )}

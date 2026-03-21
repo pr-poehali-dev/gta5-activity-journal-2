@@ -4,8 +4,8 @@ import LoginScreen from "@/components/LoginScreen";
 import PlayerRow, { RoleBadge, StatCard, StatusDot, XPBar } from "@/components/shared/PlayerRow";
 import WeekActivityChart from "@/components/shared/WeekActivityChart";
 import {
-  API_USERS, MOCK_USERS, apiPost, apiGet,
-  AuthUser, Player, Role, Status, Tab,
+  API_USERS, MOCK_USERS, MOCK_ORGS, apiPost, apiGet,
+  AuthUser, Player, Organization, Role, Status, Tab,
   STATUS_COLORS, STATUS_LABELS, formatTime,
 } from "@/lib/types";
 
@@ -93,12 +93,82 @@ function AddUserForm({ viewerRole, currentUsername, onAdded }: {
   );
 }
 
+// ─── CREATE ORG FORM ─────────────────────────────────────────
+function CreateOrgForm({ players, onCreated }: { players: Player[]; onCreated: (org: Organization) => void }) {
+  const [form, setForm] = useState({ name: "", tag: "", description: "", leaderId: "" });
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const leaders = players.filter(p => p.role === "leader" || p.role === "admin");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.tag.trim()) { setMsg({ text: "Название и тег обязательны", ok: false }); return; }
+    const leader = leaders.find(l => l.id === Number(form.leaderId));
+    const org: Organization = {
+      id: Date.now(), name: form.name.trim(), tag: form.tag.trim(),
+      description: form.description.trim(), leaderId: leader?.id ?? null,
+      leaderName: leader?.username ?? "—", memberCount: 0,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    onCreated(org);
+    setMsg({ text: `Организация «${org.name}» создана!`, ok: true });
+    setForm({ name: "", tag: "", description: "", leaderId: "" });
+  };
+
+  const inputCls = "w-full border border-purple-800/40 text-purple-100 text-sm px-4 py-2.5 rounded-xl font-mono-hud focus:outline-none placeholder:text-purple-900/60 bg-transparent focus:border-violet-600/50 transition-all";
+  const labelCls = "text-[10px] font-hud tracking-widest text-purple-600 uppercase block mb-2";
+
+  return (
+    <div className="hud-panel p-6">
+      <div className="font-hud text-xs tracking-widest text-purple-400/70 mb-5 flex items-center gap-2">
+        <Icon name="Building2" size={13} className="text-violet-400" />
+        СОЗДАТЬ ОРГАНИЗАЦИЮ
+      </div>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Название</label>
+            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className={inputCls} placeholder="Shadow Legion" />
+          </div>
+          <div>
+            <label className={labelCls}>Тег</label>
+            <input value={form.tag} onChange={e => setForm(p => ({ ...p, tag: e.target.value }))} className={inputCls} placeholder="[SL]" maxLength={8} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Описание</label>
+            <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className={inputCls} placeholder="Краткое описание организации" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Лидер организации</label>
+            <select value={form.leaderId} onChange={e => setForm(p => ({ ...p, leaderId: e.target.value }))} className={inputCls}>
+              <option value="">— Без лидера —</option>
+              {leaders.map(l => <option key={l.id} value={l.id}>{l.username} ({l.role})</option>)}
+            </select>
+          </div>
+        </div>
+        {msg && (
+          <div className={`text-xs font-mono-hud px-4 py-2.5 rounded-lg border flex items-center gap-2 ${msg.ok ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/8" : "text-red-400 border-red-500/20 bg-red-500/8"}`}>
+            <Icon name={msg.ok ? "CheckCircle" : "AlertCircle"} size={12} />
+            {msg.text}
+          </div>
+        )}
+        <button type="submit"
+          className="btn-hud font-hud text-[11px] tracking-widest px-6 py-3 text-white rounded-xl transition-all"
+          style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)", boxShadow: "0 4px 20px rgba(124,58,237,0.4)" }}>
+          СОЗДАТЬ ОРГАНИЗАЦИЮ
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // ─── MAIN ────────────────────────────────────────────────────
 export default function Index() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("stats");
   const [myStatus, setMyStatus] = useState<Status>("online");
   const [players, setPlayers] = useState<Player[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>(MOCK_ORGS);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [isMock, setIsMock] = useState(false);
 
@@ -182,6 +252,7 @@ export default function Index() {
     { id: "leaderboard", label: "Рейтинг", icon: "Trophy", visible: true },
     { id: "users", label: "Участники", icon: "Users", visible: canManageUsers },
     { id: "moderation", label: "Модерация", icon: "Shield", visible: canManageUsers },
+    { id: "organizations", label: "Организации", icon: "Building2", visible: viewerRole === "curator" },
     { id: "admin_panel", label: "Панель", icon: "Settings", visible: canAccessAdmin },
   ].filter(t => t.visible);
 
@@ -379,6 +450,7 @@ export default function Index() {
             <div className="hud-panel overflow-hidden py-2">
               {players.map((player, i) => (
                 <PlayerRow key={player.id} player={player} index={i} canEdit={true}
+                  viewerRole={viewerRole}
                   onAddWarning={handleAddWarning} onRemoveWarning={handleRemoveWarning}
                   onEditPlayer={handleEditPlayer} />
               ))}
@@ -430,6 +502,51 @@ export default function Index() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── ORGANIZATIONS ── */}
+        {activeTab === "organizations" && viewerRole === "curator" && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="font-hud text-sm tracking-wider text-purple-400">ОРГАНИЗАЦИИ</div>
+
+            {/* List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {orgs.map(org => (
+                <div key={org.id} className="hud-panel p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-hud text-base text-purple-100">{org.name}</span>
+                        <span className="rank-badge text-[9px] font-hud px-2 py-0.5 text-violet-300/80">{org.tag}</span>
+                      </div>
+                      <div className="text-[10px] text-purple-700 font-mono-hud mt-1">{org.description || "Нет описания"}</div>
+                    </div>
+                    <div className="w-9 h-9 rounded-xl bg-violet-900/40 flex items-center justify-center flex-shrink-0">
+                      <Icon name="Building2" size={15} className="text-violet-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 pt-3 border-t border-purple-900/30">
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="User" size={11} className="text-purple-700" />
+                      <span className="text-[10px] font-mono-hud text-purple-500">{org.leaderName}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="Users" size={11} className="text-purple-700" />
+                      <span className="text-[10px] font-mono-hud text-purple-500">{org.memberCount} участников</span>
+                    </div>
+                    <span className="text-[10px] font-mono-hud text-purple-800 ml-auto">{org.createdAt}</span>
+                  </div>
+                </div>
+              ))}
+              {orgs.length === 0 && (
+                <div className="md:col-span-2 hud-panel p-10 text-center font-mono-hud text-xs text-purple-800">
+                  Организаций пока нет
+                </div>
+              )}
+            </div>
+
+            <CreateOrgForm players={players} onCreated={org => setOrgs(prev => [org, ...prev])} />
           </div>
         )}
 
