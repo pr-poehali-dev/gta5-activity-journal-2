@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import LoginScreen from "@/components/LoginScreen";
 import PlayerRow, { RoleBadge, StatCard, StatusDot, XPBar } from "@/components/shared/PlayerRow";
 import WeekActivityChart from "@/components/shared/WeekActivityChart";
+import OrgDetail from "@/components/shared/OrgDetail";
 import {
   API_USERS, MOCK_USERS, MOCK_ORGS, apiPost, apiGet,
   AuthUser, Player, Organization, Role, Status, Tab,
@@ -169,6 +170,7 @@ export default function Index() {
   const [myStatus, setMyStatus] = useState<Status>("online");
   const [players, setPlayers] = useState<Player[]>([]);
   const [orgs, setOrgs] = useState<Organization[]>(MOCK_ORGS);
+  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [isMock, setIsMock] = useState(false);
 
@@ -247,14 +249,24 @@ export default function Index() {
   const canManageUsers = viewerRole === "admin" || viewerRole === "curator" || viewerRole === "leader";
   const canSeeFullStats = viewerRole === "curator";
 
+  // Лидер видит свою организацию
+  const myOrg = viewerRole === "leader"
+    ? orgs.find(o => o.leaderId === authUser.id) ?? null
+    : null;
+
   const TABS: { id: Tab; label: string; icon: string; visible: boolean }[] = [
     { id: "stats", label: "Статистика", icon: "Activity", visible: true },
     { id: "leaderboard", label: "Рейтинг", icon: "Trophy", visible: true },
     { id: "users", label: "Участники", icon: "Users", visible: canManageUsers },
     { id: "moderation", label: "Модерация", icon: "Shield", visible: canManageUsers },
-    { id: "organizations", label: "Организации", icon: "Building2", visible: viewerRole === "curator" },
+    { id: "organizations", label: "Организации", icon: "Building2", visible: viewerRole === "curator" || viewerRole === "leader" },
     { id: "admin_panel", label: "Панель", icon: "Settings", visible: canAccessAdmin },
   ].filter(t => t.visible);
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    setSelectedOrgId(null);
+  };
 
   const onlinePlayers = players.filter(p => p.status === "online").length;
   const afkPlayers = players.filter(p => p.status === "afk").length;
@@ -365,7 +377,7 @@ export default function Index() {
         {/* ── TABS ── */}
         <div className="flex gap-1 mb-5 bg-black/20 p-1 rounded-xl border border-purple-900/30 overflow-x-auto">
           {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 text-[11px] font-hud tracking-wider whitespace-nowrap rounded-lg transition-all flex-1 justify-center ${
                 activeTab === tab.id
                   ? "bg-violet-700/40 text-violet-200 border border-violet-600/40 shadow-[0_2px_12px_rgba(124,58,237,0.3)]"
@@ -506,47 +518,93 @@ export default function Index() {
         )}
 
         {/* ── ORGANIZATIONS ── */}
-        {activeTab === "organizations" && viewerRole === "curator" && (
-          <div className="space-y-4 animate-fade-in">
-            <div className="font-hud text-sm tracking-wider text-purple-400">ОРГАНИЗАЦИИ</div>
+        {activeTab === "organizations" && (viewerRole === "curator" || viewerRole === "leader") && (
+          <div className="animate-fade-in">
 
-            {/* List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {orgs.map(org => (
-                <div key={org.id} className="hud-panel p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-hud text-base text-purple-100">{org.name}</span>
-                        <span className="rank-badge text-[9px] font-hud px-2 py-0.5 text-violet-300/80">{org.tag}</span>
+            {/* LEADER VIEW: сразу открывает свою организацию */}
+            {viewerRole === "leader" && (
+              myOrg ? (
+                <OrgDetail
+                  org={myOrg}
+                  allPlayers={players}
+                  viewerRole={viewerRole}
+                  viewerId={authUser.id}
+                  onBack={() => {}}
+                  onUpdate={updated => setOrgs(prev => prev.map(o => o.id === updated.id ? updated : o))}
+                />
+              ) : (
+                <div className="hud-panel p-10 text-center space-y-2">
+                  <Icon name="Building2" size={28} className="text-purple-800 mx-auto" />
+                  <div className="font-hud text-sm text-purple-700">Вы не назначены лидером ни одной организации</div>
+                  <div className="font-mono-hud text-xs text-purple-900">Обратитесь к куратору для создания организации</div>
+                </div>
+              )
+            )}
+
+            {/* CURATOR VIEW: список + детальная страница */}
+            {viewerRole === "curator" && (
+              selectedOrgId !== null ? (
+                <OrgDetail
+                  org={orgs.find(o => o.id === selectedOrgId)!}
+                  allPlayers={players}
+                  viewerRole={viewerRole}
+                  viewerId={authUser.id}
+                  onBack={() => setSelectedOrgId(null)}
+                  onUpdate={updated => setOrgs(prev => prev.map(o => o.id === updated.id ? updated : o))}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <div className="font-hud text-sm tracking-wider text-purple-400">ОРГАНИЗАЦИИ</div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {orgs.map(org => {
+                      const orgMembers = players.filter(p => org.memberIds.includes(p.id));
+                      const onlineCnt = orgMembers.filter(p => p.status === "online").length;
+                      return (
+                        <div key={org.id}
+                          className="hud-panel p-5 cursor-pointer hover:border-violet-700/40 transition-all group"
+                          onClick={() => setSelectedOrgId(org.id)}>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-hud text-base text-purple-100 group-hover:text-violet-200 transition-colors">{org.name}</span>
+                                <span className="rank-badge text-[9px] font-hud px-2 py-0.5 text-violet-300/80">{org.tag}</span>
+                              </div>
+                              <div className="text-[10px] text-purple-700 font-mono-hud mt-1">{org.description || "Нет описания"}</div>
+                            </div>
+                            <div className="w-9 h-9 rounded-xl bg-violet-900/40 border border-violet-800/30 group-hover:border-violet-600/50 flex items-center justify-center flex-shrink-0 transition-all">
+                              <Icon name="ChevronRight" size={15} className="text-violet-500 group-hover:text-violet-300 transition-colors" />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 pt-3 border-t border-purple-900/30">
+                            <div className="flex items-center gap-1.5">
+                              <Icon name="Crown" size={11} className="text-amber-700" />
+                              <span className="text-[10px] font-mono-hud text-purple-600">{org.leaderName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Icon name="Users" size={11} className="text-purple-700" />
+                              <span className="text-[10px] font-mono-hud text-purple-600">{org.memberIds.length} уч.</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span className="text-[10px] font-mono-hud text-emerald-600">{onlineCnt} онлайн</span>
+                            </div>
+                            <span className="text-[10px] font-mono-hud text-purple-900 ml-auto">{org.createdAt}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {orgs.length === 0 && (
+                      <div className="md:col-span-2 hud-panel p-10 text-center font-mono-hud text-xs text-purple-800">
+                        Организаций пока нет
                       </div>
-                      <div className="text-[10px] text-purple-700 font-mono-hud mt-1">{org.description || "Нет описания"}</div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-violet-900/40 flex items-center justify-center flex-shrink-0">
-                      <Icon name="Building2" size={15} className="text-violet-400" />
-                    </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-4 pt-3 border-t border-purple-900/30">
-                    <div className="flex items-center gap-1.5">
-                      <Icon name="User" size={11} className="text-purple-700" />
-                      <span className="text-[10px] font-mono-hud text-purple-500">{org.leaderName}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Icon name="Users" size={11} className="text-purple-700" />
-                      <span className="text-[10px] font-mono-hud text-purple-500">{org.memberCount} участников</span>
-                    </div>
-                    <span className="text-[10px] font-mono-hud text-purple-800 ml-auto">{org.createdAt}</span>
-                  </div>
-                </div>
-              ))}
-              {orgs.length === 0 && (
-                <div className="md:col-span-2 hud-panel p-10 text-center font-mono-hud text-xs text-purple-800">
-                  Организаций пока нет
-                </div>
-              )}
-            </div>
 
-            <CreateOrgForm players={players} onCreated={org => setOrgs(prev => [org, ...prev])} />
+                  <CreateOrgForm players={players} onCreated={org => setOrgs(prev => [org, ...prev])} />
+                </div>
+              )
+            )}
           </div>
         )}
 

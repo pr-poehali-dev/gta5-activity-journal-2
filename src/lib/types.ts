@@ -12,13 +12,13 @@ export interface Organization {
   description: string;
   leaderId: number | null;
   leaderName: string;
-  memberCount: number;
+  memberIds: number[]; // id участников
   createdAt: string;
 }
 
 export const MOCK_ORGS: Organization[] = [
-  { id: 1, name: "Shadow Legion", tag: "[SL]", description: "Элитное боевое подразделение", leaderId: 3, leaderName: "Shadow_Wolf", memberCount: 12, createdAt: "2024-01-15" },
-  { id: 2, name: "Nexus Corp", tag: "[NC]", description: "Торговая корпорация Лос-Сантоса", leaderId: null, leaderName: "—", memberCount: 8, createdAt: "2024-02-20" },
+  { id: 1, name: "Shadow Legion",  tag: "[SL]", description: "Элитное боевое подразделение",    leaderId: 3, leaderName: "Shadow_Wolf", memberIds: [3, 4], createdAt: "2024-01-15" },
+  { id: 2, name: "Nexus Corp",     tag: "[NC]", description: "Торговая корпорация Лос-Сантоса", leaderId: null, leaderName: "—",        memberIds: [],    createdAt: "2024-02-20" },
 ];
 
 // Проверяет, может ли viewer редактировать target
