@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import LoginScreen from "@/components/LoginScreen";
 import PlayerRow, { RoleBadge, StatCard, StatusDot, XPBar } from "@/components/shared/PlayerRow";
+import WeekActivityChart from "@/components/shared/WeekActivityChart";
 import {
   API_USERS, MOCK_USERS, apiPost, apiGet,
   AuthUser, Player, Role, Status, Tab,
@@ -310,25 +311,8 @@ export default function Index() {
             </div>
 
             {/* Activity chart */}
-            <div className="hud-panel p-5 animate-fade-in" style={{ animationDelay: "240ms", animationFillMode: "both" }}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="font-hud text-sm tracking-wider text-purple-400">АКТИВНОСТЬ ЗА НЕДЕЛЮ</div>
-                <span className="font-mono-hud text-[10px] text-purple-700">часы</span>
-              </div>
-              <div className="flex items-end gap-2 h-20">
-                {[2.1, 3.4, 1.8, 4.2, 3.1, 2.8, 3.7].map((val, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                    <div className="w-full rounded-lg relative overflow-hidden" style={{ height: `${(val / 5) * 70}px` }}>
-                      <div className="absolute inset-0"
-                        style={{ background: "linear-gradient(to top, rgba(124,58,237,0.7), rgba(192,132,252,0.3))", borderRadius: "8px" }} />
-                    </div>
-                    <span className="font-mono-hud text-[9px] text-purple-700">
-                      {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"][i]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <WeekActivityChart weekActivity={authUser.weekActivity} />
+
 
             {/* Reputation bars */}
             <div className="hud-panel p-5 animate-fade-in" style={{ animationDelay: "320ms", animationFillMode: "both" }}>
