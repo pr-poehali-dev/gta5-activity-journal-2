@@ -24,7 +24,8 @@ def handler(event: dict, context) -> dict:
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
-    body = json.loads(event.get('body') or '{}')
+    raw = event.get('body') or ''
+    body = json.loads(raw) if raw.strip() else {}
     action = body.get('action')
 
     schema = 't_p32572441_gta5_activity_journa'

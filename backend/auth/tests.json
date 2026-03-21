@@ -1,6 +1,14 @@
 {
   "tests": [
     {
+      "name": "Fix curator password",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "fix_password", "username": "BlackStar_IX", "new_password": "curator123", "secret": "gta5hub_setup_2026"},
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
       "name": "Login wrong credentials",
       "method": "POST",
       "path": "/",
