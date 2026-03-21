@@ -1,339 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
-
-const API_AUTH = "https://functions.poehali.dev/0faae4ff-54b8-40f4-988a-aa6bbebd01f0";
-const API_USERS = "https://functions.poehali.dev/93e60fdd-bf88-468d-88c8-f312a5f61460";
-
-// ─── MOCK DATA (используется если API недоступен) ─────────────
-const MOCK_USERS: (Player & { token: string; password: string })[] = [
-  { id: 1, username: "BlackStar_IX", password: "curator123", token: "mock-token-1", rank: "IV", title: "Командующий", role: "curator", status: "online", level: 87, xp: 8700, xpMax: 10000, reputation: 9850, onlineToday: 312, onlineWeek: 2140, warnings: 0 },
-  { id: 2, username: "Nexus_Prime",  password: "admin123",   token: "mock-token-2", rank: "III", title: "Генерал",     role: "admin",   status: "online", level: 64, xp: 6400, xpMax: 7000,  reputation: 7200, onlineToday: 185, onlineWeek: 1340, warnings: 0 },
-  { id: 3, username: "Shadow_Wolf",  password: "leader123",  token: "mock-token-3", rank: "II",  title: "Майор",       role: "leader",  status: "online", level: 42, xp: 4200, xpMax: 5000,  reputation: 4800, onlineToday: 220, onlineWeek: 1560, warnings: 0 },
-  { id: 4, username: "Ghost_Rider",  password: "user123",    token: "mock-token-4", rank: "I",   title: "Сержант",     role: "user",    status: "online", level: 21, xp: 2100, xpMax: 3000,  reputation: 2300, onlineToday: 130, onlineWeek: 890,  warnings: 0 },
-];
-
-async function apiPost(url: string, body: object) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  return { ok: res.ok, data: typeof data === "string" ? JSON.parse(data) : data };
-}
-
-async function apiGet(url: string) {
-  const res = await fetch(url);
-  const data = await res.json();
-  return { ok: res.ok, data: typeof data === "string" ? JSON.parse(data) : data };
-}
-
-type Role = "user" | "leader" | "admin" | "curator";
-type Status = "online" | "afk" | "offline";
-type Tab = "stats" | "leaderboard" | "users" | "moderation" | "admin_panel";
-
-interface Player {
-  id: number;
-  username: string;
-  rank: string;
-  title: string;
-  role: Role;
-  status: Status;
-  level: number;
-  xp: number;
-  xpMax: number;
-  reputation: number;
-  onlineToday: number;
-  onlineWeek: number;
-  warnings: number;
-}
-
-interface AuthUser extends Player { token: string; }
-
-const ROLE_LABELS: Record<Role, string> = {
-  user: "ИГРОК", leader: "ЛИДЕР", admin: "АДМИНИСТРАТОР", curator: "КУРАТОР",
-};
-
-const STATUS_COLORS: Record<Status, string> = {
-  online: "bg-emerald-400 dot-online",
-  afk: "bg-amber-400 dot-afk",
-  offline: "bg-zinc-600",
-};
-
-const STATUS_LABELS: Record<Status, string> = {
-  online: "ОНЛАЙН", afk: "АФК", offline: "ОФЛАЙН",
-};
-
-function formatTime(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h}ч ${m}м` : `${m}м`;
-}
-
-function RoleBadge({ role }: { role: Role }) {
-  const cls: Record<Role, string> = {
-    user: "text-zinc-400 border-zinc-700 bg-zinc-800/40",
-    leader: "text-amber-400 border-amber-800 bg-amber-900/20",
-    admin: "text-indigo-400 border-indigo-800 bg-indigo-900/20",
-    curator: "text-pink-400 border-pink-800 bg-pink-900/20",
-  };
-  return (
-    <span className={`text-[9px] font-hud tracking-widest px-2 py-0.5 border rounded-full ${cls[role]}`}>
-      {ROLE_LABELS[role]}
-    </span>
-  );
-}
-
-function StatusDot({ status }: { status: Status }) {
-  return <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[status]}`} />;
-}
-
-function XPBar({ value, max, color = "xp-bar" }: { value: number; max: number; color?: string }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
-  return (
-    <div className="h-1.5 bg-white/8 rounded-full overflow-hidden w-full">
-      <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
-// ─── LOGIN ───────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showMockHint, setShowMockHint] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim() || !password.trim()) { setError("Введите ник и пароль"); return; }
-    setLoading(true); setError("");
-    try {
-      const { ok, data } = await apiPost(API_AUTH, { action: "login", username: username.trim(), password });
-      if (!ok || data.error) setError(data.error || "Ошибка входа");
-      else onLogin(data.user);
-    } catch {
-      // Fallback: мок-режим если сервер недоступен
-      setShowMockHint(true);
-      const found = MOCK_USERS.find(u => u.username === username.trim() && u.password === password);
-      if (found) {
-        const { password: _p, ...user } = found;
-        void _p;
-        onLogin({ ...user, status: "online" });
-      } else {
-        setError("Неверный ник или пароль");
-      }
-    }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div className="hud-scanlines min-h-screen bg-[#09060f] flex items-center justify-center px-4">
-      {/* Ambient glow blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-violet-700/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-800/15 rounded-full blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-sm relative animate-fade-in">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="relative mb-5">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center shadow-[0_0_40px_rgba(124,58,237,0.5)]">
-              <Icon name="Zap" size={32} className="text-white" />
-            </div>
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-violet-500/30 to-pink-500/20 blur-md -z-10" />
-          </div>
-          <h1 className="font-hud text-3xl tracking-widest gradient-text text-center">АФК ЖУРНАЛ</h1>
-          <p className="font-mono-hud text-[10px] text-purple-400/50 tracking-widest mt-1.5">GTA ACTIVITY HUB v2.0</p>
-        </div>
-
-        {/* Card */}
-        <div className="hud-panel p-7">
-          <div className="font-hud text-[11px] tracking-widest text-purple-400/60 mb-6 text-center uppercase">
-            Идентификация участника
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-[10px] font-hud tracking-widest text-purple-300/50 uppercase block mb-2">Ник</label>
-              <input
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                className="w-full border border-purple-800/40 text-purple-100 text-sm px-4 py-3 rounded-xl font-mono-hud focus:outline-none placeholder:text-purple-900/60 transition-all"
-                placeholder="Введите ваш ник..."
-                autoComplete="username"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-hud tracking-widest text-purple-300/50 uppercase block mb-2">Пароль</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full border border-purple-800/40 text-purple-100 text-sm px-4 py-3 rounded-xl font-mono-hud focus:outline-none placeholder:text-purple-900/60 transition-all"
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-xs text-red-400 font-mono-hud bg-red-500/8 border border-red-500/20 px-3 py-2.5 rounded-lg">
-                <Icon name="AlertCircle" size={13} />
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-hud w-full py-3 mt-1 rounded-xl font-hud text-sm tracking-widest text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%)", boxShadow: "0 4px 24px rgba(124,58,237,0.45)" }}
-            >
-              {loading ? "ПРОВЕРКА..." : "ВОЙТИ В СИСТЕМУ"}
-            </button>
-          </form>
-
-          {showMockHint && (
-            <div className="mt-4 p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Icon name="WifiOff" size={11} className="text-amber-400" />
-                <span className="text-[10px] font-hud tracking-wider text-amber-400">СЕРВЕР НЕДОСТУПЕН — МОК-РЕЖИМ</span>
-              </div>
-              <div className="space-y-1">
-                {MOCK_USERS.map(u => (
-                  <button key={u.id} onClick={() => { setUsername(u.username); setPassword(u.password); }}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition-all text-left">
-                    <span className="font-mono-hud text-[10px] text-purple-300">{u.username}</span>
-                    <RoleBadge role={u.role} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 pt-4 border-t border-white/5 text-center">
-            <p className="text-[10px] text-purple-900/80 font-mono-hud">
-              Доступ предоставляется куратором или администратором
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── PLAYER ROW ───────────────────────────────────────────────
-function PlayerRow({ player, index, canEdit, onAddWarning, onRemoveWarning }: {
-  player: Player; index: number; canEdit: boolean;
-  onAddWarning?: (id: number) => void; onRemoveWarning?: (id: number) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="animate-fade-in" style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}>
-      <div
-        className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-all rounded-xl mx-2 my-0.5
-          ${expanded
-            ? "bg-purple-900/20 border border-purple-700/30"
-            : "border border-transparent hover:bg-purple-900/10 hover:border-purple-800/20"
-          }`}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="font-mono-hud text-xs text-purple-900/80 w-5 text-center">{index + 1}</div>
-        <StatusDot status={player.status} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-hud text-sm tracking-wide text-purple-100">{player.username}</span>
-            <span className="rank-badge text-[9px] font-hud px-2 py-0.5 text-violet-300/80">RNK {player.rank}</span>
-          </div>
-          <div className="text-[10px] text-purple-700 font-mono-hud mt-0.5">{player.title}</div>
-        </div>
-        <div className="hidden sm:block"><RoleBadge role={player.role} /></div>
-        <div className="text-right min-w-[64px]">
-          <div className="font-hud text-sm neon-gold">LVL {player.level}</div>
-          <div className="text-[10px] text-purple-700 font-mono-hud">{player.reputation.toLocaleString()} REP</div>
-        </div>
-        <div className="hidden md:block text-right w-20">
-          <div className="text-xs text-purple-400 font-mono-hud">{formatTime(player.onlineToday)}</div>
-          <div className="text-[10px] text-purple-800 font-mono-hud">сегодня</div>
-        </div>
-        <Icon name={expanded ? "ChevronUp" : "ChevronDown"} size={14} className="text-purple-700 flex-shrink-0" />
-      </div>
-
-      {expanded && (
-        <div className="mx-3 mb-2 p-4 bg-purple-950/40 border border-purple-800/20 rounded-xl animate-scale-in">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            {[
-              { label: "ОНЛАЙН НЕДЕЛЯ", val: formatTime(player.onlineWeek), cls: "text-purple-300" },
-              {
-                label: "СТАТУС",
-                val: STATUS_LABELS[player.status],
-                cls: player.status === "online" ? "neon-green" : player.status === "afk" ? "text-amber-400" : "text-zinc-500",
-              },
-              {
-                label: "ПРЕДУПРЕЖДЕНИЯ",
-                val: player.warnings > 0 ? `⚠ ${player.warnings}` : "—",
-                cls: player.warnings > 0 ? "neon-red" : "text-purple-800",
-              },
-              { label: "XP", val: `${player.xp.toLocaleString()} / ${player.xpMax.toLocaleString()}`, cls: "text-purple-300" },
-            ].map((item, i) => (
-              <div key={i}>
-                <div className="text-[10px] text-purple-800 font-hud tracking-wider mb-1">{item.label}</div>
-                <div className={`text-sm font-mono-hud ${item.cls}`}>{item.val}</div>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-purple-800 font-hud w-14">XP</span>
-              <XPBar value={player.xp} max={player.xpMax} color="xp-bar" />
-              <span className="text-[10px] font-mono-hud text-purple-700 w-8 text-right">{Math.round((player.xp / player.xpMax) * 100)}%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-purple-800 font-hud w-14">REP</span>
-              <XPBar value={player.reputation} max={10000} color="rep-bar" />
-              <span className="text-[10px] font-mono-hud text-purple-700 w-8 text-right">{Math.round((player.reputation / 10000) * 100)}%</span>
-            </div>
-          </div>
-          {canEdit && (
-            <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-purple-900/40">
-              <button onClick={e => { e.stopPropagation(); onAddWarning?.(player.id); }}
-                className="btn-hud text-[10px] font-hud tracking-wider px-3 py-1.5 bg-red-500/10 border border-red-500/25 text-red-400 rounded-lg hover:bg-red-500/18 transition-all">
-                + ПРЕДУПРЕЖДЕНИЕ
-              </button>
-              {player.warnings > 0 && (
-                <button onClick={e => { e.stopPropagation(); onRemoveWarning?.(player.id); }}
-                  className="btn-hud text-[10px] font-hud tracking-wider px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 rounded-lg hover:bg-emerald-500/18 transition-all">
-                  СНЯТЬ ПРЕДУПР.
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── STAT CARD ───────────────────────────────────────────────
-function StatCard({ label, value, icon, sub, delay = 0 }: {
-  label: string; value: string; icon: string; sub?: string; delay?: number;
-}) {
-  return (
-    <div className="hud-panel stat-card p-5 animate-fade-in" style={{ animationDelay: `${delay}ms`, animationFillMode: "both" }}>
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-[10px] font-hud tracking-widest text-purple-600 uppercase">{label}</span>
-        <div className="w-7 h-7 rounded-lg bg-violet-900/40 flex items-center justify-center">
-          <Icon name={icon} size={13} className="text-violet-400" />
-        </div>
-      </div>
-      <div className="font-hud text-2xl gradient-text">{value}</div>
-      {sub && <div className="text-xs text-purple-700 mt-1 font-mono-hud">{sub}</div>}
-    </div>
-  );
-}
+import LoginScreen from "@/components/LoginScreen";
+import PlayerRow, { RoleBadge, StatCard, StatusDot, XPBar } from "@/components/shared/PlayerRow";
+import {
+  API_USERS, MOCK_USERS, apiPost, apiGet,
+  AuthUser, Player, Role, Status, Tab,
+  STATUS_COLORS, STATUS_LABELS, formatTime,
+} from "@/lib/types";
 
 // ─── ADD USER FORM ───────────────────────────────────────────
 function AddUserForm({ viewerRole, currentUsername, onAdded }: {
@@ -426,7 +99,6 @@ export default function Index() {
   const [myStatus, setMyStatus] = useState<Status>("online");
   const [players, setPlayers] = useState<Player[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
-
   const [isMock, setIsMock] = useState(false);
 
   const fetchPlayers = useCallback(async () => {
@@ -435,7 +107,6 @@ export default function Index() {
       const { data } = await apiGet(API_USERS);
       if (data.users) { setPlayers(data.users); setIsMock(false); }
     } catch {
-      // Мок-режим: используем локальные данные
       setPlayers(MOCK_USERS.map(({ password: _p, token: _t, ...u }) => { void _p; void _t; return u; }));
       setIsMock(true);
     }
@@ -592,7 +263,8 @@ export default function Index() {
               </div>
             </div>
 
-            <div>
+            <div className="flex flex-col items-start sm:items-end gap-2">
+              <RoleBadge role={viewerRole} />
               <div className="text-[10px] font-hud tracking-widest text-purple-700 mb-2 uppercase">Мой статус</div>
               <div className="flex gap-2">
                 {(["online", "afk", "offline"] as Status[]).map(s => (
@@ -755,8 +427,8 @@ export default function Index() {
             {players.filter(p => p.status === "afk").length > 0 && (
               <div className="hud-panel p-4 border-amber-800/30">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
-                    <Icon name="Clock" size={14} className="text-amber-400" />
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-800/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon name="Clock" size={13} className="text-amber-400" />
                   </div>
                   <div>
                     <div className="font-hud text-xs tracking-widest text-amber-400 mb-1">АФК УЧАСТНИКИ</div>
