@@ -97,10 +97,47 @@ def handler(event: dict, context) -> dict:
 
             conn = get_conn()
             cur = conn.cursor()
+
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET status = %s, last_seen = NOW() WHERE id = %s",
-                (status, user_id)
+                f"SELECT status, session_start, last_online_date, online_today, online_week FROM {SCHEMA}.users WHERE id = %s",
+                (user_id,)
             )
+            row = cur.fetchone()
+            if row:
+                prev_status, session_start, last_online_date, online_today, online_week = row
+                from datetime import datetime, date, timezone
+                now = datetime.now(timezone.utc)
+                today = date.today()
+
+                # Сброс daily счётчика если наступил новый день
+                if last_online_date and last_online_date < today:
+                    online_today = 0
+
+                # Начисляем минуты только если прошлый статус — online
+                minutes_to_add = 0
+                if prev_status == 'online' and session_start:
+                    if session_start.tzinfo is None:
+                        session_start = session_start.replace(tzinfo=timezone.utc)
+                    elapsed = int((now - session_start).total_seconds() / 60)
+                    if elapsed > 0:
+                        minutes_to_add = elapsed
+
+                new_online_today = online_today + minutes_to_add
+                new_online_week = online_week + minutes_to_add
+
+                # session_start: ставим при переходе в online, сбрасываем при afk/offline
+                new_session_start = now if status == 'online' else None
+
+                cur.execute(
+                    f"""UPDATE {SCHEMA}.users
+                        SET status = %s, last_seen = NOW(),
+                            session_start = %s,
+                            online_today = %s,
+                            online_week = %s,
+                            last_online_date = %s
+                        WHERE id = %s""",
+                    (status, new_session_start, new_online_today, new_online_week, today, user_id)
+                )
             conn.commit()
             cur.close()
             conn.close()

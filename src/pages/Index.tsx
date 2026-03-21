@@ -444,8 +444,33 @@ export default function Index() {
 
   useEffect(() => { if (authUser) fetchPlayers(); }, [authUser, fetchPlayers]);
 
+  // Heartbeat: каждые 60 сек посылаем set_status=online — бэкенд начисляет минуты
+  useEffect(() => {
+    if (!authUser || myStatus !== "online") return;
+    const tick = setInterval(async () => {
+      try { await apiPost(API_USERS, { action: "set_status", user_id: authUser.id, status: "online" }); }
+      catch { /* мок-режим */ }
+    }, 60_000);
+    return () => clearInterval(tick);
+  }, [authUser, myStatus]);
+
+  // При закрытии вкладки — ставим offline
+  useEffect(() => {
+    if (!authUser) return;
+    const onUnload = () => {
+      navigator.sendBeacon(API_USERS, JSON.stringify({ action: "set_status", user_id: authUser.id, status: "offline" }));
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [authUser]);
+
   const handleLogin = (user: AuthUser) => { setAuthUser(user); setMyStatus(user.status as Status); };
-  const handleLogout = () => { setAuthUser(null); setPlayers([]); setActiveTab("stats"); setIsMock(false); };
+  const handleLogout = () => {
+    if (authUser) {
+      apiPost(API_USERS, { action: "set_status", user_id: authUser.id, status: "offline" }).catch(() => {});
+    }
+    setAuthUser(null); setPlayers([]); setActiveTab("stats"); setIsMock(false);
+  };
 
   const handleStatusChange = async (status: Status) => {
     setMyStatus(status);

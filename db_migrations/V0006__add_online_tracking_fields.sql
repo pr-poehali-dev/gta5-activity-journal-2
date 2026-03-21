@@ -1,0 +1,3 @@
+ALTER TABLE t_p32572441_gta5_activity_journa.users
+  ADD COLUMN IF NOT EXISTS last_online_date DATE DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS session_start TIMESTAMP DEFAULT NULL;
