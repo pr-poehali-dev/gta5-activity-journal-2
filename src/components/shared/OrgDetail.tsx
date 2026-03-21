@@ -324,33 +324,37 @@ export default function OrgDetail({
     const player = allPlayers.find(p => p.id === playerId);
     if (!player) return;
 
-    const reason = statusChangePenaltyReason(fromStatus, toStatus);
-    const penalties = player.penalties ?? [];
-    const { newPenalties, type, excluded } = issuePenaltyToList(penalties, reason, viewerName);
+    // Взыскание выдаётся ТОЛЬКО если итоговый статус = "offline"
+    // (то есть лидер/куратор фиксирует, что участник ушёл из игры без разрешения)
+    const shouldPunish = toStatus === "offline" && (fromStatus === "online" || fromStatus === "afk");
 
-    onPlayerUpdate?.(playerId, {
-      status: toStatus,
-      penalties: newPenalties,
-      warnings: newPenalties.filter(p => p.isActive).length,
-    });
+    if (shouldPunish) {
+      const reason = statusChangePenaltyReason(fromStatus, toStatus);
+      const penalties = player.penalties ?? [];
+      const { newPenalties, type, excluded } = issuePenaltyToList(penalties, reason, viewerName);
 
-    const notifyText = excluded
-      ? `🚫 ${player.username} автоматически исключён (3 выговора). Причина: ${reason}`
-      : `⚠ ${player.username} получил «${PENALTY_LABELS[type]}». Причина: ${reason}`;
-
-    onNotify?.({ text: notifyText, type: excluded ? "excluded" : "warning", timestamp: new Date().toISOString() });
-
-    if (excluded) {
-      handleRemoveFromOrg(playerId);
-      // Уведомление с историей взысканий
-      const history = newPenalties.filter(p => p.isActive)
-        .map(p => `• ${PENALTY_LABELS[p.type]}: ${p.reason}`)
-        .join("\n");
-      onNotify?.({
-        text: `📋 История взысканий ${player.username}:\n${history}`,
-        type: "info",
-        timestamp: new Date().toISOString(),
+      onPlayerUpdate?.(playerId, {
+        status: toStatus,
+        penalties: newPenalties,
+        warnings: newPenalties.filter(p => p.isActive).length,
       });
+
+      const notifyText = excluded
+        ? `🚫 ${player.username} автоматически исключён (3 выговора). Причина: ${reason}`
+        : `⚠ ${player.username} получил «${PENALTY_LABELS[type]}». Причина: ${reason}`;
+
+      onNotify?.({ text: notifyText, type: excluded ? "excluded" : "warning", timestamp: new Date().toISOString() });
+
+      if (excluded) {
+        handleRemoveFromOrg(playerId);
+        const history = newPenalties.filter(p => p.isActive)
+          .map(p => `• ${PENALTY_LABELS[p.type]}: ${p.reason}`)
+          .join("\n");
+        onNotify?.({ text: `📋 История взысканий ${player.username}:\n${history}`, type: "info", timestamp: new Date().toISOString() });
+      }
+    } else {
+      // Просто меняем статус без взыскания
+      onPlayerUpdate?.(playerId, { status: toStatus });
     }
   };
 

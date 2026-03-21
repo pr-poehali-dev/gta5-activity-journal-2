@@ -1,6 +1,6 @@
 import Icon from "@/components/ui/icon";
 import { RoleBadge } from "@/components/shared/PlayerRow";
-import { AuthUser, Notification, Role } from "@/lib/types";
+import { AuthUser, Notification, Role, isCuratorRole } from "@/lib/types";
 
 interface AppHeaderProps {
   authUser: AuthUser;
@@ -64,7 +64,7 @@ export default function AppHeader({
           </div>
 
           {/* Колокол уведомлений */}
-          {(viewerRole === "leader" || viewerRole === "admin" || viewerRole === "curator") && (
+          {(viewerRole === "leader" || viewerRole === "admin" || isCuratorRole(viewerRole)) && (
             <div className="relative">
               <button onClick={onToggleNotifications}
                 className="w-9 h-9 rounded-xl bg-white/4 border border-purple-900/60 flex items-center justify-center hover:border-violet-600/40 hover:bg-violet-900/20 transition-all relative">

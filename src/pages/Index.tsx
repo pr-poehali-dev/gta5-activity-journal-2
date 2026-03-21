@@ -5,7 +5,7 @@ import { ProfileCard, TabBar } from "@/components/hud/ProfileCard";
 import TabContent from "@/components/hud/TabContent";
 import {
   API_USERS, MOCK_USERS, MOCK_ORGS, apiPost, apiGet,
-  AuthUser, Player, Organization, Notification, Role, Status, Tab,
+  AuthUser, Player, Organization, Notification, Role, Status, Tab, isCuratorRole,
 } from "@/lib/types";
 
 export default function Index() {
@@ -99,14 +99,20 @@ export default function Index() {
   const handleUpdateOrg = (updated: Organization) =>
     setOrgs(prev => prev.map(o => o.id === updated.id ? updated : o));
 
+  const handleRoleChange = async (userId: number, role: Role) => {
+    setPlayers(p => p.map(u => u.id === userId ? { ...u, role } : u));
+    try { await apiPost(API_USERS, { action: "edit_user", user_id: userId, role }); }
+    catch { /* мок: уже обновили */ }
+  };
+
   // ── Экран входа ──────────────────────────────────────────────
   if (!authUser) return <LoginScreen onLogin={handleLogin} />;
 
   // ── Производные данные ───────────────────────────────────────
   const viewerRole      = authUser.role as Role;
-  const canAccessAdmin  = viewerRole === "admin" || viewerRole === "curator";
-  const canManageUsers  = viewerRole === "admin" || viewerRole === "curator" || viewerRole === "leader";
-  const canSeeFullStats = viewerRole === "curator";
+  const canAccessAdmin  = viewerRole === "admin" || isCuratorRole(viewerRole);
+  const canManageUsers  = viewerRole === "admin" || isCuratorRole(viewerRole) || viewerRole === "leader";
+  const canSeeFullStats = isCuratorRole(viewerRole);
 
   const myOrg = viewerRole === "leader"
     ? orgs.find(o => o.leaderId === authUser.id) ?? null
@@ -117,7 +123,7 @@ export default function Index() {
     { id: "leaderboard",   label: "Рейтинг",      icon: "Trophy",     visible: true },
     { id: "users",         label: "Участники",    icon: "Users",      visible: canManageUsers },
     { id: "moderation",    label: "Модерация",    icon: "Shield",     visible: canManageUsers },
-    { id: "organizations", label: "Организации",  icon: "Building2",  visible: viewerRole === "curator" || viewerRole === "leader" },
+    { id: "organizations", label: "Организации",  icon: "Building2",  visible: isCuratorRole(viewerRole) || viewerRole === "leader" },
     { id: "admin_panel",   label: "Панель",       icon: "Settings",   visible: canAccessAdmin },
   ].filter(t => t.visible);
 
@@ -190,6 +196,7 @@ export default function Index() {
           onUpdatePlayer={handleUpdatePlayer}
           onNotify={addNotification}
           onOrgCreated={org => setOrgs(prev => [org, ...prev])}
+          onRoleChange={handleRoleChange}
         />
       </div>
 

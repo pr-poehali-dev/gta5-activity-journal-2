@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import PlayerRow, { RoleBadge, StatCard, StatusDot, XPBar } from "@/components/shared/PlayerRow";
 import WeekActivityChart from "@/components/shared/WeekActivityChart";
@@ -5,7 +6,7 @@ import OrgDetail from "@/components/shared/OrgDetail";
 import { AddUserForm, CreateOrgForm } from "@/components/hud/AdminForms";
 import {
   AuthUser, Player, Organization, Notification, Role, Tab,
-  formatTime,
+  formatTime, isCuratorRole,
 } from "@/lib/types";
 
 interface TabContentProps {
@@ -34,6 +35,7 @@ interface TabContentProps {
   onUpdatePlayer: (id: number, fields: Partial<Player>) => void;
   onNotify: (note: Omit<Notification, "id" | "read">) => void;
   onOrgCreated: (org: Organization) => void;
+  onRoleChange?: (id: number, role: Role) => void;
 }
 
 export default function TabContent({
@@ -41,7 +43,7 @@ export default function TabContent({
   selectedOrgId, loadingPlayers, myOrg,
   canManageUsers, canAccessAdmin, canSeeFullStats,
   onlinePlayers, afkPlayers, totalOnlineToday,
-  sorted, myRank,
+  sorted, myRank, onRoleChange,
   onFetchPlayers, onAddWarning, onRemoveWarning, onEditPlayer,
   onSetSelectedOrgId, onUpdateOrg, onUpdatePlayer, onNotify, onOrgCreated,
 }: TabContentProps) {
@@ -269,6 +271,37 @@ export default function TabContent({
 
   // ── ADMIN PANEL ──────────────────────────────────────────────
   if (activeTab === "admin_panel" && canAccessAdmin) return (
+    <AdminPanel
+      viewerRole={viewerRole}
+      authUser={authUser}
+      players={players}
+      canSeeFullStats={canSeeFullStats}
+      onlinePlayers={onlinePlayers}
+      totalOnlineToday={totalOnlineToday}
+      onFetchPlayers={onFetchPlayers}
+      onRoleChange={onRoleChange}
+    />
+  );
+
+  return null;
+}
+
+// ─── ADMIN PANEL COMPONENT ────────────────────────────────────
+function AdminPanel({ viewerRole, authUser, players, canSeeFullStats, onlinePlayers, totalOnlineToday, onFetchPlayers, onRoleChange }: {
+  viewerRole: Role; authUser: AuthUser; players: Player[];
+  canSeeFullStats: boolean; onlinePlayers: number; totalOnlineToday: number;
+  onFetchPlayers: () => void; onRoleChange?: (id: number, role: Role) => void;
+}) {
+  const [curatorTarget, setCuratorTarget] = useState<number | null>(null);
+  const isMainCurator = viewerRole === "curator";
+
+  const staffPlayers = players.filter(p =>
+    p.role === "admin" || isCuratorRole(p.role)
+  );
+
+  const adminPlayers = players.filter(p => p.role === "admin");
+
+  return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="font-hud text-sm tracking-wider text-purple-400">ПАНЕЛЬ АДМИНИСТРАТОРА</div>
@@ -276,14 +309,14 @@ export default function TabContent({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Admin online */}
+        {/* Staff online */}
         <div className="hud-panel overflow-hidden">
           <div className="px-5 py-3.5 border-b border-purple-900/40 flex items-center gap-2">
             <Icon name="Activity" size={12} className="text-indigo-400" />
             <div className="font-hud text-xs tracking-widest text-indigo-400">ОНЛАЙН АДМИНИСТРАЦИИ</div>
           </div>
           <div className="p-4 space-y-3">
-            {players.filter(p => p.role === "admin" || p.role === "curator").map(player => (
+            {staffPlayers.map(player => (
               <div key={player.id} className="flex items-center gap-3">
                 <StatusDot status={player.status} />
                 <div className="flex-1">
@@ -293,13 +326,13 @@ export default function TabContent({
                 <RoleBadge role={player.role} />
               </div>
             ))}
-            {players.filter(p => p.role === "admin" || p.role === "curator").length === 0 && (
+            {staffPlayers.length === 0 && (
               <div className="text-xs text-purple-800 font-mono-hud text-center py-2">Нет данных</div>
             )}
           </div>
         </div>
 
-        {/* AFK stats (curator only) */}
+        {/* AFK stats */}
         <div className={`hud-panel overflow-hidden ${!canSeeFullStats ? "opacity-35 pointer-events-none" : ""}`}>
           <div className="px-5 py-3.5 border-b border-purple-900/40 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -308,8 +341,7 @@ export default function TabContent({
             </div>
             {!canSeeFullStats && (
               <div className="flex items-center gap-1 text-[10px] font-hud text-purple-800">
-                <Icon name="Lock" size={10} />
-                КУРАТОР
+                <Icon name="Lock" size={10} /> КУРАТОР
               </div>
             )}
           </div>
@@ -331,9 +363,74 @@ export default function TabContent({
         </div>
       </div>
 
+      {/* Назначение ролей куратора (только главный куратор) */}
+      {isMainCurator && (
+        <div className="hud-panel p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon name="ShieldCheck" size={13} className="text-violet-400" />
+            <span className="font-hud text-xs tracking-widest text-purple-400/80">ПРАВА КУРАТОРА</span>
+            <span className="text-[10px] font-mono-hud text-purple-800 ml-auto">только главный куратор</span>
+          </div>
+
+          <div className="space-y-2">
+            {adminPlayers.map(player => {
+              const isEditing = curatorTarget === player.id;
+              return (
+                <div key={player.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-purple-900/10 border border-purple-800/20">
+                  <StatusDot status={player.status} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-hud text-sm text-purple-100">{player.username}</div>
+                    <div className="text-[10px] text-purple-700 font-mono-hud">{player.title}</div>
+                  </div>
+                  <RoleBadge role={player.role} />
+                  {!isEditing ? (
+                    <button onClick={() => setCuratorTarget(player.id)}
+                      className="btn-hud text-[10px] font-hud tracking-wider px-3 py-1.5 bg-violet-900/30 border border-violet-700/40 text-violet-400 rounded-lg hover:bg-violet-800/40 transition-all">
+                      ПРАВА
+                    </button>
+                  ) : (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {([
+                        { role: "curator_admin"   as Role, label: "КУР. АДМИН",    cls: "text-violet-400 border-violet-700/50 bg-violet-900/25 hover:bg-violet-800/40" },
+                        { role: "curator_faction" as Role, label: "КУР. ФРАКЦИЙ",  cls: "text-cyan-400   border-cyan-700/50   bg-cyan-900/25   hover:bg-cyan-800/40" },
+                        { role: "admin"           as Role, label: "СНЯТЬ",          cls: "text-zinc-500  border-zinc-700/40   bg-zinc-900/20   hover:bg-zinc-800/30" },
+                      ]).map(btn => (
+                        <button key={btn.role}
+                          onClick={() => { onRoleChange?.(player.id, btn.role); setCuratorTarget(null); }}
+                          className={`btn-hud text-[10px] font-hud tracking-wider px-2.5 py-1.5 rounded-lg border transition-all ${btn.cls}`}>
+                          {btn.label}
+                        </button>
+                      ))}
+                      <button onClick={() => setCuratorTarget(null)}
+                        className="btn-hud text-[10px] font-hud px-2 py-1.5 rounded-lg border border-purple-900/40 text-purple-700 hover:text-purple-400 transition-all">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {adminPlayers.length === 0 && (
+              <div className="text-xs font-mono-hud text-purple-800 text-center py-3">Администраторов нет</div>
+            )}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-purple-900/30 space-y-1.5">
+            <div className="text-[10px] font-hud tracking-widest text-purple-800 mb-2">ЧТО МОГУТ ДЕЛАТЬ</div>
+            {[
+              { role: "curator_admin",   icon: "ShieldCheck", color: "text-violet-400", desc: "Следит за администрацией, может изменять имена администраторов" },
+              { role: "curator_faction", icon: "Building2",   color: "text-cyan-400",   desc: "Следит за фракциями, управляет организациями" },
+            ].map(item => (
+              <div key={item.role} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-purple-900/10">
+                <Icon name={item.icon} size={11} className={`${item.color} mt-0.5 flex-shrink-0`} />
+                <span className="text-[10px] font-mono-hud text-purple-600">{item.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <AddUserForm viewerRole={viewerRole} currentUsername={authUser.username} onAdded={onFetchPlayers} />
     </div>
   );
-
-  return null;
 }
