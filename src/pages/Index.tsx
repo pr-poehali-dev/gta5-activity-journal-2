@@ -154,6 +154,9 @@ export default function Index() {
       <AppHeader
         authUser={authUser}
         viewerRole={viewerRole}
+        players={players}
+        orders={orders}
+        onAddOrder={order => setOrders(prev => [...prev, order])}
         onlinePlayers={onlinePlayers}
         afkPlayers={afkPlayers}
         isMock={isMock}
@@ -162,6 +165,7 @@ export default function Index() {
         onToggleNotifications={() => setShowNotifications(v => !v)}
         onMarkAllRead={() => { setNotifications(p => p.map(n => ({ ...n, read: true }))); setShowNotifications(false); }}
         onLogout={handleLogout}
+        onNotify={addNotification}
       />
 
       <div className="max-w-5xl mx-auto px-4 py-6">
