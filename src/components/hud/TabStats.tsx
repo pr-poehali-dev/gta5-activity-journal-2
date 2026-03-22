@@ -1,5 +1,6 @@
 import WeekActivityChart from "@/components/shared/WeekActivityChart";
 import { StatCard, XPBar } from "@/components/shared/PlayerRow";
+import Icon from "@/components/ui/icon";
 import { AuthUser, formatTime } from "@/lib/types";
 
 interface TabStatsProps {
@@ -8,6 +9,10 @@ interface TabStatsProps {
 }
 
 export default function TabStats({ authUser, myRank }: TabStatsProps) {
+  const verbalCount    = authUser.penalties.filter(p => p.type === "verbal"    && p.isActive).length;
+  const reprimandCount = authUser.penalties.filter(p => p.type === "reprimand" && p.isActive).length;
+  const hasPenalties   = verbalCount > 0 || reprimandCount > 0;
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -18,6 +23,100 @@ export default function TabStats({ authUser, myRank }: TabStatsProps) {
       </div>
 
       <WeekActivityChart weekActivity={authUser.weekActivity} />
+
+      {/* Взыскания */}
+      <div className="hud-panel p-5 animate-fade-in" style={{ animationDelay: "260ms", animationFillMode: "both" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Icon name="ShieldAlert" size={13} className="text-purple-500" />
+          <div className="font-hud text-sm tracking-wider text-purple-400">ВЗЫСКАНИЯ</div>
+          {!hasPenalties && (
+            <span className="ml-auto text-[10px] font-mono-hud text-emerald-600 flex items-center gap-1">
+              <Icon name="CheckCircle" size={10} /> Нарушений нет
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Устные предупреждения */}
+          <div className={`rounded-xl border p-4 flex items-center gap-3 transition-colors ${
+            verbalCount === 0 ? "border-purple-900/30 bg-purple-900/10"
+            : verbalCount >= 2 ? "border-red-700/40 bg-red-900/10"
+            : "border-yellow-700/40 bg-yellow-900/10"
+          }`}>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              verbalCount === 0 ? "bg-purple-900/30"
+              : verbalCount >= 2 ? "bg-red-900/30"
+              : "bg-yellow-900/30"
+            }`}>
+              <Icon name="MessageSquareWarning" size={15} className={
+                verbalCount === 0 ? "text-purple-700"
+                : verbalCount >= 2 ? "text-red-400"
+                : "text-yellow-400"
+              } />
+            </div>
+            <div>
+              <div className="text-[10px] font-hud tracking-widest text-purple-600 mb-0.5">УСТ. ПРЕДУПРЕЖДЕНИЯ</div>
+              <div className={`font-hud text-xl ${
+                verbalCount === 0 ? "text-purple-800"
+                : verbalCount >= 2 ? "text-red-400 neon-red"
+                : "text-yellow-300"
+              }`}>
+                {verbalCount} <span className="text-[11px] font-mono-hud text-purple-700">/ 2</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Выговоры */}
+          <div className={`rounded-xl border p-4 flex items-center gap-3 transition-colors ${
+            reprimandCount === 0 ? "border-purple-900/30 bg-purple-900/10"
+            : reprimandCount >= 3 ? "border-red-700/40 bg-red-900/10"
+            : reprimandCount >= 2 ? "border-orange-700/40 bg-orange-900/10"
+            : "border-yellow-700/40 bg-yellow-900/10"
+          }`}>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              reprimandCount === 0 ? "bg-purple-900/30"
+              : reprimandCount >= 3 ? "bg-red-900/30"
+              : "bg-orange-900/30"
+            }`}>
+              <Icon name="AlertOctagon" size={15} className={
+                reprimandCount === 0 ? "text-purple-700"
+                : reprimandCount >= 3 ? "text-red-400"
+                : reprimandCount >= 2 ? "text-orange-400"
+                : "text-yellow-400"
+              } />
+            </div>
+            <div>
+              <div className="text-[10px] font-hud tracking-widest text-purple-600 mb-0.5">ВЫГОВОРЫ</div>
+              <div className={`font-hud text-xl ${
+                reprimandCount === 0 ? "text-purple-800"
+                : reprimandCount >= 3 ? "text-red-400 neon-red"
+                : reprimandCount >= 2 ? "text-orange-400"
+                : "text-yellow-300"
+              }`}>
+                {reprimandCount} <span className="text-[11px] font-mono-hud text-purple-700">/ 3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* История активных взысканий */}
+        {hasPenalties && (
+          <div className="mt-4 space-y-1.5">
+            {authUser.penalties.filter(p => p.isActive).map(p => (
+              <div key={p.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-900/15 border border-purple-900/30">
+                <Icon name={p.type === "verbal" ? "MessageSquareWarning" : "AlertOctagon"} size={11}
+                  className={p.type === "verbal" ? "text-yellow-400" : "text-orange-400"} />
+                <span className="text-[10px] font-hud text-purple-500">
+                  {p.type === "verbal" ? "Уст. предупреждение" : "Выговор"}
+                </span>
+                {p.reason && p.reason !== "Выдано через таблицу" && (
+                  <span className="text-[10px] font-mono-hud text-purple-700 flex-1 truncate">— {p.reason}</span>
+                )}
+                <span className="text-[10px] font-mono-hud text-purple-900 ml-auto">{p.issuedAt}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="hud-panel p-5 animate-fade-in" style={{ animationDelay: "320ms", animationFillMode: "both" }}>
         <div className="font-hud text-sm tracking-wider text-purple-400 mb-4">СИСТЕМА РЕПУТАЦИИ</div>
