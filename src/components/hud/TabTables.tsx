@@ -1,7 +1,7 @@
 import Icon from "@/components/ui/icon";
 import HudTable from "@/components/shared/HudTable";
 import {
-  Player, Organization, Role, TableSheet,
+  Player, Organization, Role, TableSheet, Penalty,
   COL_ID_VERBAL, COL_ID_REPRIMAND,
 } from "@/lib/types";
 
@@ -13,11 +13,13 @@ interface TabTablesProps {
   adminTable: TableSheet;
   onOrgTableChange: (t: TableSheet) => void;
   onAdminTableChange: (t: TableSheet) => void;
+  onUpdatePlayer: (id: number, fields: Partial<Player>) => void;
 }
 
 export default function TabTables({
   viewerRole, players, myOrg,
   orgTable, adminTable, onOrgTableChange, onAdminTableChange,
+  onUpdatePlayer,
 }: TabTablesProps) {
   const canSeeAdmin     = viewerRole === "curator" || viewerRole === "curator_admin";
   const canSeeOrg       = viewerRole === "leader" || viewerRole === "curator" || viewerRole === "curator_faction" || viewerRole === "admin";
@@ -48,6 +50,26 @@ export default function TabTables({
   const orgTableSynced   = syncPenalties(orgTable);
   const adminTableSynced = syncPenalties(adminTable);
 
+  // Выдать / снять наказания по имени игрока и нужному количеству
+  const handlePenaltyChange = (nickname: string, type: "verbal" | "reprimand", count: number) => {
+    const player = players.find(p => p.username.toLowerCase() === nickname.toLowerCase());
+    if (!player) return;
+
+    // Оставляем все penalties другого типа + неактивные своего типа
+    const other = player.penalties.filter(p => p.type !== type || !p.isActive);
+    // Создаём нужное кол-во активных penalties нужного типа
+    const active: Penalty[] = Array.from({ length: count }, (_, i) => ({
+      id: Date.now() + i,
+      type,
+      reason: "Выдано через таблицу",
+      issuedBy: "",
+      issuedAt: new Date().toISOString().slice(0, 10),
+      isActive: true,
+    }));
+
+    onUpdatePlayer(player.id, { penalties: [...other, ...active] });
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       {canSeeOrg && (
@@ -67,6 +89,7 @@ export default function TabTables({
             canEditCells={canEditOrgCells}
             canEditStructure={canEditOrgStructure}
             onChange={onOrgTableChange}
+            onPenaltyChange={handlePenaltyChange}
           />
         </div>
       )}
@@ -87,6 +110,7 @@ export default function TabTables({
             canEditCells={canEditAdminCells}
             canEditStructure={canEditAdminStructure}
             onChange={onAdminTableChange}
+            onPenaltyChange={handlePenaltyChange}
           />
         </div>
       )}

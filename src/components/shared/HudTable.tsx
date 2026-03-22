@@ -5,6 +5,66 @@ import { TableSheet, TableColumn, TableRow, TABLE_COL_COLORS, COL_ID_VERBAL, COL
 
 const AUTO_COLS = new Set([COL_ID_VERBAL, COL_ID_REPRIMAND]);
 
+// ─── PENALTY CELL ────────────────────────────────────────────
+function PenaltyCell({ value, colId, canEdit, onSave }: {
+  value: string; colId: number; canEdit: boolean; onSave: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isVerbal    = colId === COL_ID_VERBAL;
+  const max         = isVerbal ? 2 : 3;
+  const options     = Array.from({ length: max + 1 }, (_, i) => i);
+  const num         = parseInt(value) || 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const colorCls = num === 0
+    ? "text-purple-700"
+    : isVerbal
+      ? num >= 2 ? "text-red-400" : "text-yellow-300"
+      : num >= 3 ? "text-red-400" : num >= 2 ? "text-orange-300" : "text-yellow-300";
+
+  return (
+    <div ref={ref} className="relative px-2 py-1.5">
+      <div
+        className={`text-[11px] font-mono-hud ${colorCls} ${canEdit ? "cursor-pointer hover:opacity-80" : ""} select-none`}
+        onClick={() => canEdit && setOpen(o => !o)}
+        title={canEdit ? "Нажмите для изменения" : undefined}
+      >
+        {num === 0 ? "—" : num}
+      </div>
+
+      {open && canEdit && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-[#110d1e] border border-purple-700/50 rounded-xl shadow-xl overflow-hidden">
+          <div className="px-3 py-2 border-b border-purple-900/40">
+            <div className="text-[10px] font-hud tracking-widest text-purple-600">
+              {isVerbal ? "УСТ. ПРЕДУПРЕЖДЕНИЯ" : "ВЫГОВОРЫ"} (0–{max})
+            </div>
+          </div>
+          <div className="flex gap-1 p-2">
+            {options.map(n => (
+              <button key={n}
+                onClick={() => { onSave(String(n)); setOpen(false); }}
+                className={`w-8 h-8 rounded-lg font-hud text-sm border transition-all
+                  ${n === num
+                    ? "border-violet-500/70 bg-violet-700/30 text-violet-200"
+                    : "border-purple-800/40 text-purple-500 hover:border-violet-600/50 hover:text-violet-300"
+                  }`}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── INLINE CELL ─────────────────────────────────────────────
 function Cell({ value, onSave, readOnly }: {
   value: string; onSave: (v: string) => void; readOnly?: boolean;
@@ -124,9 +184,10 @@ interface HudTableProps {
   canEditCells: boolean;    // лидер/куратор — редактирует ячейки
   canEditStructure: boolean;// куратор орг/адм — добавляет столбцы, меняет цвет
   onChange: (sheet: TableSheet) => void;
+  onPenaltyChange?: (nickname: string, type: "verbal" | "reprimand", count: number) => void;
 }
 
-export default function HudTable({ sheet, canEditCells, canEditStructure, onChange }: HudTableProps) {
+export default function HudTable({ sheet, canEditCells, canEditStructure, onChange, onPenaltyChange }: HudTableProps) {
   const [newColName, setNewColName] = useState("");
   const [newColColor, setNewColColor] = useState("text-purple-300");
   const [showAddCol, setShowAddCol] = useState(false);
@@ -267,8 +328,21 @@ export default function HudTable({ sheet, canEditCells, canEditStructure, onChan
                 </td>
                 {sheet.columns.map(col => (
                   <td key={col.id} className="border-r border-purple-800/10 align-top" style={{ minWidth: col.width }}>
-                    <Cell value={row.cells[col.id] ?? ""} readOnly={!canEditCells || AUTO_COLS.has(col.id)}
-                      onSave={v => setCell(row.id, col.id, v)} />
+                    {AUTO_COLS.has(col.id) ? (
+                      <PenaltyCell
+                        value={row.cells[col.id] ?? "0"}
+                        colId={col.id}
+                        canEdit={canEditCells && !!onPenaltyChange}
+                        onSave={v => {
+                          const nickname = row.cells[1] ?? "";
+                          const type = col.id === COL_ID_VERBAL ? "verbal" : "reprimand";
+                          onPenaltyChange?.(nickname, type, parseInt(v) || 0);
+                        }}
+                      />
+                    ) : (
+                      <Cell value={row.cells[col.id] ?? ""} readOnly={!canEditCells}
+                        onSave={v => setCell(row.id, col.id, v)} />
+                    )}
                   </td>
                 ))}
                 {canEditCells && (
