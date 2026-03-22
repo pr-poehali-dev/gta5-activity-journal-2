@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { Player, Role, Status, STATUS_COLORS, STATUS_LABELS, ROLE_LABELS, formatTime, canEditTarget } from "@/lib/types";
 
-const RANKS = ["1","2","3","4","5","6","7","8","9","10"];
 
 export function RoleBadge({ role }: { role: Role }) {
   const cls: Record<Role, string> = {
@@ -63,16 +62,20 @@ export default function PlayerRow({ player, index, canEdit, viewerRole, onAddWar
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftName, setDraftName] = useState(player.username);
   const [draftTitle, setDraftTitle] = useState(player.title);
+  const [draftRank, setDraftRank] = useState(player.rank);
   const nameRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const rankRef = useRef<HTMLInputElement>(null);
 
   // Права: можно ли данному viewer редактировать этого player
   const canEditThis = canEdit && !!viewerRole && canEditTarget(viewerRole, player.role);
 
   useEffect(() => { setDraftName(player.username); }, [player.username]);
   useEffect(() => { setDraftTitle(player.title); }, [player.title]);
+  useEffect(() => { setDraftRank(player.rank); }, [player.rank]);
   useEffect(() => { if (editingUsername) nameRef.current?.focus(); }, [editingUsername]);
   useEffect(() => { if (editingTitle) titleRef.current?.focus(); }, [editingTitle]);
+  useEffect(() => { if (editingRank) rankRef.current?.focus(); }, [editingRank]);
 
   const commitName = () => {
     const trimmed = draftName.trim();
@@ -88,8 +91,10 @@ export default function PlayerRow({ player, index, canEdit, viewerRole, onAddWar
     setEditingTitle(false);
   };
 
-  const commitRank = (rank: string) => {
-    onEditPlayer?.(player.id, { rank });
+  const commitRank = () => {
+    const trimmed = draftRank.trim();
+    if (trimmed && trimmed !== player.rank) onEditPlayer?.(player.id, { rank: trimmed });
+    else setDraftRank(player.rank);
     setEditingRank(false);
   };
 
@@ -130,16 +135,18 @@ export default function PlayerRow({ player, index, canEdit, viewerRole, onAddWar
 
             {/* RANK */}
             {canEditThis && editingRank ? (
-              <div className="relative" onClick={e => e.stopPropagation()}>
-                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {RANKS.map(r => (
-                    <button key={r} onClick={() => commitRank(r)}
-                      className={`rank-badge text-[9px] font-hud px-2 py-0.5 transition-all ${r === player.rank ? "text-violet-200 border-violet-500/70 scale-110" : "text-violet-400/50 hover:text-violet-200"}`}>
-                      {r}
-                    </button>
-                  ))}
-                  <button onClick={() => setEditingRank(false)} className="text-[10px] text-purple-700 hover:text-purple-400 px-1">✕</button>
-                </div>
+              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                <span className="text-[9px] font-hud text-violet-400/60">РАНГ</span>
+                <input
+                  ref={rankRef}
+                  value={draftRank}
+                  onChange={e => setDraftRank(e.target.value)}
+                  onBlur={commitRank}
+                  onKeyDown={e => { if (e.key === "Enter") commitRank(); if (e.key === "Escape") { setDraftRank(player.rank); setEditingRank(false); } }}
+                  maxLength={10}
+                  className="font-hud text-[9px] text-violet-200 bg-purple-900/50 border border-violet-600/50 rounded-md px-2 py-0.5 outline-none w-16 focus:border-violet-400/70"
+                />
+                <button onClick={() => { setDraftRank(player.rank); setEditingRank(false); }} className="text-[10px] text-purple-700 hover:text-purple-400">✕</button>
               </div>
             ) : (
               <span
@@ -147,7 +154,7 @@ export default function PlayerRow({ player, index, canEdit, viewerRole, onAddWar
                 onClick={e => { if (canEditThis) { e.stopPropagation(); setEditingRank(true); } }}
                 title={canEditThis ? "Нажмите для смены ранга" : undefined}
               >
-                RNK {player.rank}
+                РАНГ {player.rank}
               </span>
             )}
 

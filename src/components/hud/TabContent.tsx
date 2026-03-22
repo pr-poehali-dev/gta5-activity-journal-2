@@ -7,7 +7,7 @@ import HudTable from "@/components/shared/HudTable";
 import { AddUserForm, CreateOrgForm } from "@/components/hud/AdminForms";
 import {
   AuthUser, Player, Organization, Notification, TableSheet, Role, Tab,
-  formatTime, isCuratorRole,
+  formatTime, isCuratorRole, COL_ID_VERBAL, COL_ID_REPRIMAND,
 } from "@/lib/types";
 
 interface TabContentProps {
@@ -193,6 +193,31 @@ export default function TabContent({
     const canEditOrgCells = viewerRole === "leader" || viewerRole === "curator" || viewerRole === "curator_faction";
     const canEditAdminCells = viewerRole === "curator" || viewerRole === "curator_admin";
 
+    // Автоматически проставляем устные предупреждения и выговоры из players[]
+    const syncPenalties = (sheet: TableSheet): TableSheet => {
+      return {
+        ...sheet,
+        rows: sheet.rows.map(row => {
+          const nickname = row.cells[1] ?? "";
+          const player = players.find(p => p.username.toLowerCase() === nickname.toLowerCase());
+          if (!player) return row;
+          const verbal   = player.penalties.filter(p => p.type === "verbal"    && p.isActive).length;
+          const reprimand = player.penalties.filter(p => p.type === "reprimand" && p.isActive).length;
+          return {
+            ...row,
+            cells: {
+              ...row.cells,
+              [COL_ID_VERBAL]:   String(verbal),
+              [COL_ID_REPRIMAND]: String(reprimand),
+            },
+          };
+        }),
+      };
+    };
+
+    const orgTableSynced   = syncPenalties(orgTable);
+    const adminTableSynced = syncPenalties(adminTable);
+
     return (
       <div className="space-y-5 animate-fade-in">
         {/* Таблица организации */}
@@ -209,7 +234,7 @@ export default function TabContent({
               )}
             </div>
             <HudTable
-              sheet={orgTable}
+              sheet={orgTableSynced}
               canEditCells={canEditOrgCells}
               canEditStructure={canEditOrgStructure}
               onChange={onOrgTableChange}
@@ -230,7 +255,7 @@ export default function TabContent({
               )}
             </div>
             <HudTable
-              sheet={adminTable}
+              sheet={adminTableSynced}
               canEditCells={canEditAdminCells}
               canEditStructure={canEditAdminStructure}
               onChange={onAdminTableChange}

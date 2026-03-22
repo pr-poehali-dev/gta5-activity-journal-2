@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import HudSelect from "@/components/ui/hud-select";
-import { TableSheet, TableColumn, TableRow, TABLE_COL_COLORS } from "@/lib/types";
+import { TableSheet, TableColumn, TableRow, TABLE_COL_COLORS, COL_ID_VERBAL, COL_ID_REPRIMAND } from "@/lib/types";
+
+const AUTO_COLS = new Set([COL_ID_VERBAL, COL_ID_REPRIMAND]);
 
 // ─── INLINE CELL ─────────────────────────────────────────────
 function Cell({ value, onSave, readOnly }: {
@@ -265,7 +267,7 @@ export default function HudTable({ sheet, canEditCells, canEditStructure, onChan
                 </td>
                 {sheet.columns.map(col => (
                   <td key={col.id} className="border-r border-purple-800/10 align-top" style={{ minWidth: col.width }}>
-                    <Cell value={row.cells[col.id] ?? ""} readOnly={!canEditCells}
+                    <Cell value={row.cells[col.id] ?? ""} readOnly={!canEditCells || AUTO_COLS.has(col.id)}
                       onSave={v => setCell(row.id, col.id, v)} />
                   </td>
                 ))}

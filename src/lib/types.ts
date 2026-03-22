@@ -37,34 +37,41 @@ export interface TableSheet {
   rows: TableRow[];
 }
 
+export const COL_ID_VERBAL   = 6; // id зарезервированного столбца "Устные предупреждения"
+export const COL_ID_REPRIMAND = 7; // id зарезервированного столбца "Выговоры"
+
 export const MOCK_TABLE_ORG: TableSheet = {
   id: 1, name: "Состав фракции", scope: "org", orgId: 1,
   columns: [
-    { id: 1, name: "Никнейм",   color: "text-purple-300", width: 160 },
-    { id: 2, name: "Должность", color: "text-sky-300",    width: 140 },
-    { id: 3, name: "Ранг",      color: "text-amber-300",  width: 80  },
-    { id: 4, name: "Онлайн",    color: "text-emerald-300",width: 100 },
-    { id: 5, name: "Заметки",   color: "text-zinc-300",   width: 200 },
+    { id: 1, name: "Никнейм",                color: "text-purple-300", width: 160 },
+    { id: 2, name: "Должность",              color: "text-sky-300",    width: 140 },
+    { id: 3, name: "Ранг",                   color: "text-amber-300",  width: 80  },
+    { id: 4, name: "Онлайн",                 color: "text-emerald-300",width: 100 },
+    { id: COL_ID_VERBAL,   name: "Уст. предупреждения", color: "text-yellow-300", width: 140 },
+    { id: COL_ID_REPRIMAND, name: "Выговоры",           color: "text-red-300",    width: 100 },
+    { id: 5, name: "Заметки",                color: "text-zinc-300",   width: 200 },
   ],
   rows: [
-    { id: 1, cells: { 1: "Shadow_Wolf", 2: "Лидер",       3: "10", 4: "Высокий", 5: "" } },
-    { id: 2, cells: { 1: "Ghost_Rider", 2: "Штурмовик",   3: "4",  4: "Средний", 5: "На испытательном" } },
+    { id: 1, cells: { 1: "Shadow_Wolf", 2: "Лидер",     3: "10", 4: "Высокий", [COL_ID_VERBAL]: "0", [COL_ID_REPRIMAND]: "0", 5: "" } },
+    { id: 2, cells: { 1: "Ghost_Rider", 2: "Штурмовик", 3: "4",  4: "Средний", [COL_ID_VERBAL]: "0", [COL_ID_REPRIMAND]: "0", 5: "На испытательном" } },
   ],
 };
 
 export const MOCK_TABLE_ADMIN: TableSheet = {
   id: 2, name: "Администрация", scope: "admin",
   columns: [
-    { id: 1, name: "Никнейм",     color: "text-purple-300", width: 160 },
-    { id: 2, name: "Роль",        color: "text-indigo-300", width: 140 },
-    { id: 3, name: "Куратор",     color: "text-pink-300",   width: 140 },
-    { id: 4, name: "Активность",  color: "text-emerald-300",width: 120 },
-    { id: 5, name: "Примечание",  color: "text-zinc-300",   width: 200 },
+    { id: 1, name: "Никнейм",               color: "text-purple-300", width: 160 },
+    { id: 2, name: "Роль",                  color: "text-indigo-300", width: 140 },
+    { id: 3, name: "Куратор",               color: "text-pink-300",   width: 140 },
+    { id: 4, name: "Активность",            color: "text-emerald-300",width: 120 },
+    { id: COL_ID_VERBAL,   name: "Уст. предупреждения", color: "text-yellow-300", width: 140 },
+    { id: COL_ID_REPRIMAND, name: "Выговоры",           color: "text-red-300",    width: 100 },
+    { id: 5, name: "Примечание",            color: "text-zinc-300",   width: 200 },
   ],
   rows: [
-    { id: 1, cells: { 1: "Nexus_Prime",    2: "Администратор", 3: "BlackStar_IX", 4: "Высокая", 5: "" } },
-    { id: 2, cells: { 1: "Curator_Admin",  2: "Кур. Адм.",     3: "BlackStar_IX", 4: "Высокая", 5: "" } },
-    { id: 3, cells: { 1: "Curator_Frac",   2: "Кур. Фракций",  3: "BlackStar_IX", 4: "Средняя", 5: "" } },
+    { id: 1, cells: { 1: "Nexus_Prime",   2: "Администратор", 3: "BlackStar_IX", 4: "Высокая", [COL_ID_VERBAL]: "0", [COL_ID_REPRIMAND]: "0", 5: "" } },
+    { id: 2, cells: { 1: "Curator_Admin", 2: "Кур. Адм.",     3: "BlackStar_IX", 4: "Высокая", [COL_ID_VERBAL]: "0", [COL_ID_REPRIMAND]: "0", 5: "" } },
+    { id: 3, cells: { 1: "Curator_Frac",  2: "Кур. Фракций",  3: "BlackStar_IX", 4: "Средняя", [COL_ID_VERBAL]: "0", [COL_ID_REPRIMAND]: "0", 5: "" } },
   ],
 };
 

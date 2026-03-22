@@ -7,7 +7,7 @@ import { API_USERS, apiPost, Organization, Player, Role } from "@/lib/types";
 export function AddUserForm({ viewerRole, currentUsername, onAdded }: {
   viewerRole: Role; currentUsername: string; onAdded: () => void;
 }) {
-  const [form, setForm] = useState({ username: "", password: "", role: "user", title: "Новобранец", rank: "I" });
+  const [form, setForm] = useState({ username: "", password: "", role: "user", title: "Новобранец", rank: "1" });
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,12 +19,12 @@ export function AddUserForm({ viewerRole, currentUsername, onAdded }: {
       const { data } = await apiPost(API_USERS, { action: "add_user", ...form, created_by: currentUsername });
       if (data.ok) {
         setMsg({ text: `Участник ${form.username} добавлен!`, ok: true });
-        setForm({ username: "", password: "", role: "user", title: "Новобранец", rank: "I" });
+        setForm({ username: "", password: "", role: "user", title: "Новобранец", rank: "1" });
         onAdded();
       } else setMsg({ text: data.error || "Ошибка", ok: false });
     } catch {
       setMsg({ text: `[МОК] Участник ${form.username} добавлен (локально)`, ok: true });
-      setForm({ username: "", password: "", role: "user", title: "Новобранец", rank: "I" });
+      setForm({ username: "", password: "", role: "user", title: "Новобранец", rank: "1" });
       onAdded();
     } finally { setLoading(false); }
   };
@@ -54,10 +54,12 @@ export function AddUserForm({ viewerRole, currentUsername, onAdded }: {
           </div>
           <div>
             <label className={labelCls}>Ранг</label>
-            <HudSelect
+            <input
               value={form.rank}
-              onChange={v => setForm(p => ({ ...p, rank: v }))}
-              options={["I", "II", "III", "IV"].map(r => ({ value: r, label: r }))}
+              onChange={e => setForm(p => ({ ...p, rank: e.target.value }))}
+              className={inputCls}
+              placeholder="1"
+              maxLength={10}
             />
           </div>
           <div className="sm:col-span-2">
