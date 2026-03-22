@@ -5,7 +5,7 @@ import { ProfileCard, TabBar } from "@/components/hud/ProfileCard";
 import TabContent from "@/components/hud/TabContent";
 import {
   API_USERS, MOCK_USERS, MOCK_ORGS, MOCK_TABLE_ORG, MOCK_TABLE_ADMIN, apiPost, apiGet,
-  AuthUser, Player, Organization, Notification, TableSheet, Role, Status, Tab, isCuratorRole,
+  AuthUser, Player, Organization, Notification, TableSheet, Order, Role, Status, Tab, isCuratorRole,
 } from "@/lib/types";
 
 export default function Index() {
@@ -21,6 +21,7 @@ export default function Index() {
   const [isMock, setIsMock]                   = useState(false);
   const [orgTable, setOrgTable]               = useState<TableSheet>(MOCK_TABLE_ORG);
   const [adminTable, setAdminTable]           = useState<TableSheet>(MOCK_TABLE_ADMIN);
+  const [orders, setOrders]                   = useState<Order[]>([]);
 
   // ── Уведомления ─────────────────────────────────────────────
   const addNotification = (note: Omit<Notification, "id" | "read">) => {
@@ -113,23 +114,25 @@ export default function Index() {
   // ── Производные данные ───────────────────────────────────────
   const viewerRole      = authUser.role as Role;
   const canAccessAdmin  = viewerRole === "admin" || isCuratorRole(viewerRole);
-  const canManageUsers  = viewerRole === "admin" || isCuratorRole(viewerRole) || viewerRole === "leader";
+  const canManageUsers  = viewerRole === "admin" || isCuratorRole(viewerRole) || viewerRole === "leader" || viewerRole === "deputy";
   const canSeeFullStats = isCuratorRole(viewerRole);
 
   const myOrg = viewerRole === "leader"
     ? orgs.find(o => o.leaderId === authUser.id) ?? null
     : null;
 
-  const canSeeTables = canManageUsers || viewerRole === "curator_admin";
+  const canSeeTables  = canManageUsers || viewerRole === "curator_admin";
+  const canSeeOrders  = viewerRole === "leader" || viewerRole === "deputy" || isCuratorRole(viewerRole);
 
   const TABS: { id: Tab; label: string; icon: string; visible: boolean }[] = [
-    { id: "stats",         label: "Статистика",   icon: "Activity",   visible: true },
-    { id: "leaderboard",   label: "Рейтинг",      icon: "Trophy",     visible: true },
-    { id: "users",         label: "Участники",    icon: "Users",      visible: canManageUsers },
-    { id: "moderation",    label: "Модерация",    icon: "Shield",     visible: canManageUsers },
-    { id: "tables",        label: "Таблицы",      icon: "Table2",     visible: canSeeTables },
-    { id: "organizations", label: "Организации",  icon: "Building2",  visible: isCuratorRole(viewerRole) || viewerRole === "leader" },
-    { id: "admin_panel",   label: "Панель",       icon: "Settings",   visible: canAccessAdmin },
+    { id: "stats",         label: "Статистика",   icon: "Activity",    visible: true },
+    { id: "leaderboard",   label: "Рейтинг",      icon: "Trophy",      visible: true },
+    { id: "users",         label: "Участники",    icon: "Users",       visible: canManageUsers },
+    { id: "moderation",    label: "Модерация",    icon: "Shield",      visible: canManageUsers },
+    { id: "tables",        label: "Таблицы",      icon: "Table2",      visible: canSeeTables },
+    { id: "orders",        label: "Приказная",    icon: "ScrollText",  visible: canSeeOrders },
+    { id: "organizations", label: "Организации",  icon: "Building2",   visible: isCuratorRole(viewerRole) || viewerRole === "leader" },
+    { id: "admin_panel",   label: "Панель",       icon: "Settings",    visible: canAccessAdmin },
   ].filter(t => t.visible);
 
   const handleTabChange = (tab: Tab) => { setActiveTab(tab); setSelectedOrgId(null); };
@@ -206,6 +209,8 @@ export default function Index() {
           adminTable={adminTable}
           onOrgTableChange={setOrgTable}
           onAdminTableChange={setAdminTable}
+          orders={orders}
+          onAddOrder={order => setOrders(prev => [...prev, order])}
         />
       </div>
 

@@ -69,6 +69,7 @@ export function AddUserForm({ viewerRole, currentUsername, onAdded }: {
               onChange={v => setForm(p => ({ ...p, role: v }))}
               options={[
                 { value: "user",    label: "ИГРОК",          color: "text-zinc-300" },
+                { value: "deputy",  label: "ЗАМЕСТИТЕЛЬ",    color: "text-orange-400" },
                 { value: "leader",  label: "ЛИДЕР",          color: "text-amber-400" },
                 ...(viewerRole === "admin" || viewerRole === "curator"
                   ? [{ value: "admin", label: "АДМИНИСТРАТОР", color: "text-indigo-400" }] : []),

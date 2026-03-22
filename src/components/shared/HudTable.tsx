@@ -188,7 +188,7 @@ function ColHeader({ col, canEdit, onRename, onColorChange, onDelete }: {
   const bg = TABLE_COL_COLORS.find(c => c.value === col.color)?.bg ?? "bg-purple-900/30";
 
   return (
-    <div className={`relative flex items-center gap-1.5 px-3 py-2 ${bg} border-b border-r border-purple-800/30 w-full overflow-hidden`}>
+    <div className={`relative flex items-center gap-1.5 px-3 py-2 ${bg} border-b border-r border-purple-800/30`}>
       {editing ? (
         <input ref={ref} value={draft}
           onChange={e => setDraft(e.target.value)}
@@ -355,25 +355,18 @@ export default function HudTable({ sheet, canEditCells, canEditStructure, onChan
       )}
 
       {/* Table */}
-      <div className="w-full">
-        <table className="w-full border-collapse table-fixed">
-          <colgroup>
-            <col style={{ width: "32px" }} />
-            {sheet.columns.map(col => (
-              <col key={col.id} />
-            ))}
-            {canEditCells && <col style={{ width: "32px" }} />}
-          </colgroup>
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-purple-800/50 scrollbar-track-transparent">
+        <table className="w-full border-collapse" style={{ minWidth: sheet.columns.length * 120 + 80 }}>
           <thead>
             <tr className="group">
-              <th className="px-2 py-2 bg-purple-900/20 border-b border-r border-purple-800/30 text-[10px] font-mono-hud text-purple-800">#</th>
+              <th className="w-8 px-2 py-2 bg-purple-900/20 border-b border-r border-purple-800/30 text-[10px] font-mono-hud text-purple-800">#</th>
               {sheet.columns.map(col => (
-                <th key={col.id} className="group">
+                <th key={col.id} className="group" style={{ minWidth: col.width }}>
                   <ColHeader col={col} canEdit={canEditStructure}
                     onRename={renameCol} onColorChange={colorCol} onDelete={deleteCol} />
                 </th>
               ))}
-              {canEditCells && <th className="bg-purple-900/20 border-b border-purple-800/30" />}
+              {canEditCells && <th className="w-8 bg-purple-900/20 border-b border-purple-800/30" />}
             </tr>
           </thead>
           <tbody>
@@ -391,7 +384,7 @@ export default function HudTable({ sheet, canEditCells, canEditStructure, onChan
                   {ri + 1}
                 </td>
                 {sheet.columns.map(col => (
-                  <td key={col.id} className="border-r border-purple-800/10 align-middle overflow-hidden">
+                  <td key={col.id} className="border-r border-purple-800/10 align-middle" style={{ minWidth: col.width }}>
                     {AUTO_COLS.has(col.id) ? (
                       <PenaltyCell
                         value={row.cells[col.id] ?? "0"}

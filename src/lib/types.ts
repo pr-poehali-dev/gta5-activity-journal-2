@@ -1,9 +1,9 @@
 export const API_AUTH = "https://functions.poehali.dev/0faae4ff-54b8-40f4-988a-aa6bbebd01f0";
 export const API_USERS = "https://functions.poehali.dev/93e60fdd-bf88-468d-88c8-f312a5f61460";
 
-export type Role = "user" | "leader" | "admin" | "curator" | "curator_admin" | "curator_faction";
+export type Role = "user" | "leader" | "deputy" | "admin" | "curator" | "curator_admin" | "curator_faction";
 export type Status = "online" | "afk" | "offline";
-export type Tab = "stats" | "leaderboard" | "users" | "moderation" | "admin_panel" | "organizations" | "tables";
+export type Tab = "stats" | "leaderboard" | "users" | "moderation" | "admin_panel" | "organizations" | "tables" | "orders";
 
 // ── Таблицы (Excel-стиль) ─────────────────────────────────────
 export const TABLE_COL_COLORS = [
@@ -74,6 +74,19 @@ export const MOCK_TABLE_ADMIN: TableSheet = {
     { id: 3, cells: { 1: "Curator_Frac",  2: "Кур. Фракций",  3: "BlackStar_IX", 4: "Средняя", [COL_ID_VERBAL]: "0", [COL_ID_REPRIMAND]: "0", 5: "" } },
   ],
 };
+
+// ── Приказы ───────────────────────────────────────────────────
+export interface Order {
+  id: number;
+  number: string;        // номер приказа (вводит лидер)
+  targetName: string;    // имя сотрудника
+  comment: string;       // комментарий
+  issuedBy: string;      // кто выдал (username)
+  issuedByRole: Role;    // роль выдавшего
+  issuedAt: string;      // дата ISO
+  valid: boolean;        // прошёл ли проверку номера
+  validationError?: string; // если невалидный — причина
+}
 
 // Тип взыскания
 export type PenaltyType = "verbal" | "reprimand" | "excluded";
@@ -147,9 +160,9 @@ export function isCuratorRole(role: Role): boolean {
 // Проверяет, может ли viewer редактировать target
 export function canEditTarget(viewerRole: Role, targetRole: Role): boolean {
   if (isCuratorRole(viewerRole)) return true;
-  // curator_admin может менять имена администраторам
-  if (viewerRole === "admin") return targetRole === "leader" || targetRole === "user";
-  if (viewerRole === "leader") return targetRole === "user";
+  if (viewerRole === "admin") return targetRole === "leader" || targetRole === "deputy" || targetRole === "user";
+  if (viewerRole === "leader") return targetRole === "deputy" || targetRole === "user";
+  if (viewerRole === "deputy") return targetRole === "user";
   return false;
 }
 
@@ -233,7 +246,7 @@ export interface Notification {
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
-  user: "ИГРОК", leader: "ЛИДЕР", admin: "АДМИНИСТРАТОР", curator: "КУРАТОР",
+  user: "ИГРОК", leader: "ЛИДЕР", deputy: "ЗАМЕСТИТЕЛЬ", admin: "АДМИНИСТРАТОР", curator: "КУРАТОР",
   curator_admin: "КУР. АДМИНИСТРАЦИИ", curator_faction: "КУР. ФРАКЦИЙ",
 };
 

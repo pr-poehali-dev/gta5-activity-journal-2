@@ -7,6 +7,7 @@ export function RoleBadge({ role }: { role: Role }) {
   const cls: Record<Role, string> = {
     user:             "text-zinc-400   border-zinc-700   bg-zinc-800/40",
     leader:           "text-amber-400  border-amber-800  bg-amber-900/20",
+    deputy:           "text-orange-400 border-orange-800 bg-orange-900/20",
     admin:            "text-indigo-400 border-indigo-800 bg-indigo-900/20",
     curator:          "text-pink-400   border-pink-800   bg-pink-900/20",
     curator_admin:    "text-violet-400 border-violet-800 bg-violet-900/20",

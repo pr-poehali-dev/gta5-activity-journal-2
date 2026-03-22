@@ -1,9 +1,10 @@
 import TabStats from "@/components/hud/TabStats";
 import TabTables from "@/components/hud/TabTables";
+import TabOrders from "@/components/hud/TabOrders";
 import { TabLeaderboard, TabUsers, TabModeration } from "@/components/hud/TabModeration";
 import { TabOrganizations, TabAdminPanel } from "@/components/hud/TabOrganizations";
 import {
-  AuthUser, Player, Organization, Notification, TableSheet, Role, Tab,
+  AuthUser, Player, Organization, Notification, TableSheet, Order, Role, Tab,
 } from "@/lib/types";
 
 interface TabContentProps {
@@ -37,6 +38,8 @@ interface TabContentProps {
   adminTable: TableSheet;
   onOrgTableChange: (t: TableSheet) => void;
   onAdminTableChange: (t: TableSheet) => void;
+  orders: Order[];
+  onAddOrder: (order: Order) => void;
 }
 
 export default function TabContent({
@@ -46,6 +49,7 @@ export default function TabContent({
   onlinePlayers, afkPlayers, totalOnlineToday,
   sorted, myRank, onRoleChange,
   orgTable, adminTable, onOrgTableChange, onAdminTableChange,
+  orders, onAddOrder,
   onFetchPlayers, onAddWarning, onRemoveWarning, onEditPlayer,
   onSetSelectedOrgId, onUpdateOrg, onUpdatePlayer, onNotify, onOrgCreated,
 }: TabContentProps) {
@@ -67,6 +71,14 @@ export default function TabContent({
 
   if (activeTab === "moderation" && canManageUsers)
     return <TabModeration players={players} onRemoveWarning={onRemoveWarning} />;
+
+  if (activeTab === "orders")
+    return (
+      <TabOrders
+        authUser={authUser} viewerRole={viewerRole} players={players}
+        orders={orders} onAddOrder={onAddOrder} onNotify={onNotify}
+      />
+    );
 
   if (activeTab === "tables")
     return (
